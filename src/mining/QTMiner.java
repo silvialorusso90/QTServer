@@ -1,4 +1,5 @@
-package mining;/*
+package mining;
+/**
 classe che include l'implementazione dell'algoritmo QT
  */
 
@@ -8,7 +9,8 @@ import mining.Cluster;
 import mining.ClusterSet;
 
 import java.io.*;
-
+import java.util.Set;
+import java.util.TreeSet;
 
 public class QTMiner implements Serializable{
 
@@ -31,7 +33,7 @@ public class QTMiner implements Serializable{
      * con il parametro passato come input
      * @param radius raggio del cluster
      */
-    public QTMiner(double radius) {
+    public QTMiner(final double radius) {
         C = new ClusterSet();
         this.radius = radius;
     }
@@ -41,23 +43,14 @@ public class QTMiner implements Serializable{
      * @param fileName percorso+nome file
      */
     public QTMiner(String fileName) throws FileNotFoundException, IOException, ClassNotFoundException {
-        FileInputStream inFile = new FileInputStream(fileName);
-        ObjectInputStream inStream = new ObjectInputStream(inFile);
+        final FileInputStream inFile = new FileInputStream(fileName);
+        final ObjectInputStream inStream = new ObjectInputStream(inFile);
         QTMiner qt = (QTMiner)inStream.readObject();
         inStream.close();
         C = qt.C;
         radius = qt.radius;
-    }
 
-    /**
-     * Apre il file identificato da fileName e salva l'oggetto riferito da C in tale file.
-     * @param fileName percorso+nome file
-     */
-    public void salva(String fileName) throws FileNotFoundException, IOException {
-        FileOutputStream outFile = new FileOutputStream(fileName);
-        ObjectOutputStream outStream = new ObjectOutputStream(outFile);
-        outStream.writeObject(this);
-        outStream.close();
+
     }
 
     /**
@@ -79,27 +72,26 @@ public class QTMiner implements Serializable{
      * @param data insieme di tuple
      * @return numero di cluster scoperti
      */
-    public int compute(Data data) throws ClusteringRadiusException, EmptyDatasetException {
+    public int compute(final Data data) throws ClusteringRadiusException, EmptyDatasetException {
         if(data.getNumberOfExamples()==0)
-            throw new EmptyDatasetException();
+            throw new EmptyDatasetException("Empty dataset!");
         int numclusters=0;
-        boolean isClustered[]=new boolean[data.getNumberOfExamples()];
+        final boolean isClustered[]=new boolean[data.getNumberOfExamples()];
         for(int i=0;i<isClustered.length;i++)
             isClustered[i]=false;
         int countClustered=0;
         while(countClustered!=data.getNumberOfExamples()){
             //Ricerca cluster pi˘ popoloso
-            Cluster c=buildCandidateCluster(data, isClustered);
+            final Cluster c=buildCandidateCluster(data, isClustered);
             C.add(c);
             numclusters++;
             //Rimuovo tuple clusterizzate da dataset
-            //int clusteredTupleId[]=c.iterator();
-            for(Integer i : c)
+            for(final Integer i : c)
                 isClustered[i]=true;
             countClustered+=c.getSize();
         }
         if(numclusters==1)
-            throw new ClusteringRadiusException();
+            throw new ClusteringRadiusException(data.getNumberOfExamples() + "tuples in one cluster!");
         return numclusters;
     }
 
@@ -112,21 +104,42 @@ public class QTMiner implements Serializable{
      * assegnata ad alcun cluster di C, true altrimenti)
      * @return cluster candidato pi˘ popoloso
      */
-    private Cluster buildCandidateCluster(Data data, boolean isClustered[]){
-        Cluster ClusterMax = new Cluster(data.getItemSet(0));
-        for(int i=0;i<isClustered.length;i++){
-            if(!isClustered[i]){
-                Cluster c = new Cluster(data.getItemSet(i));
-                for(int j=0; j<isClustered.length; j++){
-                    if(!isClustered[j]){
-                        if(data.getItemSet(i).getDistance(data.getItemSet(j))<=radius)
-                            c.addData(j);
+    private Cluster buildCandidateCluster(final Data data, final boolean[] isClustered){
+        final Set<Cluster> C = new TreeSet<Cluster>();
+        for (int i = 0; i < data.getNumberOfExamples(); i++) {
+            if (!isClustered[i]) {
+                final Cluster candidato = new Cluster(data.getItemSet(i));
+                for (int j = 0; j < data.getNumberOfExamples(); j++) {
+                    if (!isClustered[j]) {
+                        if (data.getItemSet(i).getDistance(data.getItemSet(j)) <= radius) {
+                            candidato.addData(j);
+                        }
                     }
                 }
-                if(c.getSize()>ClusterMax.getSize())
-                    ClusterMax = c;
+                C.add(candidato);
             }
         }
-        return ClusterMax;
+        return ((TreeSet<Cluster>) C).last();
     }
+
+    /**
+     * Apre il file identificato da fileName e salva l'oggetto riferito da C in tale file.
+     * @param fileName percorso+nome file
+     */
+    public void salva(final String fileName) throws FileNotFoundException, IOException {
+        final FileOutputStream outFile = new FileOutputStream(fileName);
+        final ObjectOutputStream outStream = new ObjectOutputStream(outFile);
+        outStream.writeObject(this);
+        outStream.close();
+    }
+
+    @Override
+    public String toString() {
+        return C.toString();
+    }
+
+    public String toString(final Data data) {
+        return C.toString(data);
+    }
+
 }
